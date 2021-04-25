@@ -15,8 +15,6 @@ import '../constants/constants.dart';
 /// By extending it you can customize how you can get all assets or paths,
 /// how to fetch the next page of assets, how to get the thumb data of a path.
 abstract class AssetPickerProvider<A, P> extends ChangeNotifier {
-  /// Call [getAssetList] with route duration when constructing.
-  /// 构造时根据路由时长延时获取资源
   AssetPickerProvider({
     this.maxAssets = 9,
     this.pageSize = 320,
@@ -129,6 +127,15 @@ abstract class AssetPickerProvider<A, P> extends ChangeNotifier {
 
   Map<P, Uint8List?> get pathEntityList => _pathEntityList;
 
+  /// How many path has a valid thumb data.
+  /// 当前有多少目录已经正常载入了缩略图
+  ///
+  /// This getter provides a "Should Rebuild" condition judgement to [Selector]
+  /// with the path entities widget.
+  /// 它为目录部件展示部分的 [Selector] 提供了是否重建的条件。
+  int get validPathThumbCount =>
+      _pathEntityList.values.where((Uint8List? d) => d != null).length;
+
   /// The path which is currently using.
   /// 正在查看的资源路径
   P? _currentPathEntity;
@@ -170,6 +177,17 @@ abstract class AssetPickerProvider<A, P> extends ChangeNotifier {
     _selectedAssets = List<A>.from(value);
     notifyListeners();
   }
+
+  /// Descriptions for selected assets currently.
+  /// 当前已被选中的资源的描述
+  ///
+  /// This getter provides a "Should Rebuild" condition judgement to [Selector]
+  /// with the preview widget's selective part.
+  /// 它为预览部件的选中部分的 [Selector] 提供了是否重建的条件。
+  String get selectedDescriptions => _selectedAssets.fold(
+        <String>[],
+        (List<String> list, A a) => list..add(a.toString()),
+      ).join();
 
   /// 选中资源是否为空
   bool get isSelectedNotEmpty => selectedAssets.isNotEmpty;
@@ -216,6 +234,8 @@ abstract class AssetPickerProvider<A, P> extends ChangeNotifier {
 
 class DefaultAssetPickerProvider
     extends AssetPickerProvider<AssetEntity, AssetPathEntity> {
+  /// Call [getAssetList] with route duration when constructing.
+  /// 构造时根据路由时长延时获取资源
   DefaultAssetPickerProvider({
     List<AssetEntity>? selectedAssets,
     this.requestType = RequestType.image,
@@ -259,18 +279,17 @@ class DefaultAssetPickerProvider
   Future<void> getAssetPathList() async {
     // Initial base options.
     // Enable need title for audios and image to get proper display.
-    final FilterOptionGroup options = FilterOptionGroup()
-      ..setOption(
-        AssetType.audio,
-        const FilterOption(needTitle: true),
-      )
-      ..setOption(
-        AssetType.image,
-        const FilterOption(
-          needTitle: true,
-          sizeConstraint: SizeConstraint(ignoreSize: true),
-        ),
-      );
+    final FilterOptionGroup options = FilterOptionGroup(
+      imageOption: const FilterOption(
+        needTitle: true,
+        sizeConstraint: SizeConstraint(ignoreSize: true),
+      ),
+      audioOption: const FilterOption(
+        needTitle: true,
+        sizeConstraint: SizeConstraint(ignoreSize: true),
+      ),
+      containsPathModified: true,
+    );
 
     // Merge user's filter option into base options if it's not null.
     if (filterOptions != null) {
@@ -291,6 +310,7 @@ class DefaultAssetPickerProvider
       if (requestType != RequestType.audio) {
         getFirstThumbFromPathEntity(pathEntity).then((Uint8List? data) {
           _pathEntityList[pathEntity] = data;
+          notifyListeners();
         });
       }
     }

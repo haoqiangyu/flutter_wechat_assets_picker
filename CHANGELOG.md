@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 5.1.3
+
+- Fix not synced issue when the picker is under single pick mode.
+
+## 5.1.2
+
+- Fix selected assets not sync between thumbnail preview mode and grid view.
+- Fix wrong index displays in thumbnail preview mode.
+- Dependencies upgrade roll.
+
+## 5.1.1
+
+- Integrate `lastModified` to sort path entities by default.
+
+## 5.1.0
+
+- Reset to the top for the assets grid view after switching path.
+- Add ability to select assets in any position of the picker.
+- Implement mime type for image type judgement.
+- Fix disappeared GIF's indicator.
+
+## 5.0.5
+
+- Fix force cast null type issue with WeChat moment special pick type.
+- Improve app bar's type definition.
+
+## 5.0.4
+
+- Fix path thumb data's display issue.
+- Fix default preview thumb size issue with image preview builder.
+
 ## 5.0.3
 
 - Remove required annotation for selected assets.
@@ -17,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 5.0.1
 
 - Fix video indicator layout issue.
-- Prevent video selec in wechat moment mode for edge cases.
+- Prevent video select in WeChat moment mode for edge cases.
 - Pickup fixes from `photo_manager`.
 
 ## 5.0.0

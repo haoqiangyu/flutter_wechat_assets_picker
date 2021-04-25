@@ -82,6 +82,9 @@ abstract class AssetPickerBuilderDelegate<A, P> {
   /// 当没有资源时是否显示自定义item
   final bool allowSpecialItemWhenEmpty;
 
+  /// The [ScrollController] for the preview grid.
+  final ScrollController gridScrollController = ScrollController();
+
   /// [ThemeData] for the picker.
   /// 选择器使用的主题
   ThemeData get theme => pickerTheme ?? AssetPicker.themeData(themeColor);
@@ -154,10 +157,7 @@ abstract class AssetPickerBuilderDelegate<A, P> {
       start: 0,
       bottom: 0,
       child: Container(
-        width: double.maxFinite,
-        height: 26.0,
-        alignment: const FractionalOffset(0.1, 0.1),
-        padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 2.0),
+        padding: const EdgeInsets.all(6.0),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: AlignmentDirectional.bottomCenter,
@@ -166,10 +166,7 @@ abstract class AssetPickerBuilderDelegate<A, P> {
           ),
         ),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 2.0,
-            vertical: 2.0,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
           decoration: !isAppleOS
               ? BoxDecoration(
                   borderRadius: BorderRadius.circular(2.0),
@@ -261,6 +258,7 @@ abstract class AssetPickerBuilderDelegate<A, P> {
         selector: (_, AssetPickerProvider<A, P> provider) =>
             provider.currentAssets,
         builder: (_, List<A> currentAssets, __) => GridView.builder(
+          controller: gridScrollController,
           padding: isAppleOS
               ? EdgeInsets.only(
                   top: Screens.topSafeHeight + kToolbarHeight,
@@ -382,7 +380,7 @@ abstract class AssetPickerBuilderDelegate<A, P> {
 
   /// Custom app bar for the picker.
   /// 选择器自定义的顶栏
-  Widget appBar(BuildContext context);
+  PreferredSizeWidget appBar(BuildContext context);
 
   /// Layout for Apple OS devices.
   /// 苹果系列设备的选择器布局
@@ -441,7 +439,7 @@ class DefaultAssetPickerBuilderDelegate
           allowSpecialItemWhenEmpty: allowSpecialItemWhenEmpty,
         );
 
-  /// Thumb size for the preview of images in the viewer.
+  /// Preview thumbnail size in the viewer.
   /// 预览时图片的缩略图大小
   ///
   /// This only works on images since other types does not have request
@@ -509,7 +507,7 @@ class DefaultAssetPickerBuilderDelegate
   }
 
   @override
-  FixedAppBar appBar(BuildContext context) {
+  PreferredSizeWidget appBar(BuildContext context) {
     return FixedAppBar(
       backgroundColor: theme.appBarTheme.color,
       centerTitle: isAppleOS,
@@ -906,16 +904,17 @@ class DefaultAssetPickerBuilderDelegate
           ),
         ),
       ),
-      child: Selector<DefaultAssetPickerProvider,
-          Map<AssetPathEntity, Uint8List?>>(
-        selector: (_, DefaultAssetPickerProvider p) => p.pathEntityList,
-        builder: (_, Map<AssetPathEntity, Uint8List?> pathEntityList, __) {
+      child: Selector<DefaultAssetPickerProvider, int>(
+        selector: (_, DefaultAssetPickerProvider p) => p.validPathThumbCount,
+        builder: (BuildContext c, int count, __) {
+          final Map<AssetPathEntity, Uint8List?> list =
+              c.watch<DefaultAssetPickerProvider>().pathEntityList;
           return ListView.separated(
             padding: const EdgeInsets.only(top: 1.0),
-            itemCount: pathEntityList.length,
+            itemCount: list.length,
             itemBuilder: (_, int index) => pathEntityWidget(
-              context: context,
-              list: pathEntityList,
+              context: c,
+              list: list,
               index: index,
               isAudio: isAudio,
             ),
@@ -1030,7 +1029,10 @@ class DefaultAssetPickerBuilderDelegate
       type: MaterialType.transparency,
       child: InkWell(
         splashFactory: InkSplash.splashFactory,
-        onTap: () => provider.switchPath(pathEntity),
+        onTap: () {
+          provider.switchPath(pathEntity);
+          gridScrollController.jumpTo(0);
+        },
         child: SizedBox(
           height: isAppleOS ? 64.0 : 52.0,
           child: Row(
@@ -1137,9 +1139,13 @@ class DefaultAssetPickerBuilderDelegate
 
   @override
   Widget selectIndicator(BuildContext context, AssetEntity asset) {
-    return Selector<DefaultAssetPickerProvider, List<AssetEntity>>(
-      selector: (_, DefaultAssetPickerProvider p) => p.selectedAssets,
-      builder: (_, List<AssetEntity> selectedAssets, __) {
+    return Selector<DefaultAssetPickerProvider, String>(
+      selector: (_, DefaultAssetPickerProvider p) => p.selectedDescriptions,
+      builder: (BuildContext context, _, __) {
+        final List<AssetEntity> selectedAssets =
+            context.select<DefaultAssetPickerProvider, List<AssetEntity>>(
+          (DefaultAssetPickerProvider p) => p.selectedAssets,
+        );
         final bool selected = selectedAssets.contains(asset);
         final double indicatorSize = Screens.width / gridCount / 3;
         return Positioned(
@@ -1223,6 +1229,8 @@ class DefaultAssetPickerBuilderDelegate
             previewAssets: provider.currentAssets,
             themeData: theme,
             previewThumbSize: previewThumbSize,
+            selectedAssets: provider.selectedAssets,
+            selectorProvider: provider as DefaultAssetPickerProvider,
             specialPickerType:
                 asset.type == AssetType.video ? specialPickerType : null,
           );
